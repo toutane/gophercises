@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 )
 
 func main() {
 	var filename string
 	flag.StringVar(&filename, "f", "problems.csv", "File containing questions and answers.")
+	timeLimit := flag.Int("l", 30, "The time limit in seconde.")
 	flag.Parse()
 
 	file, err := os.Open(filename)
@@ -26,21 +28,34 @@ func main() {
 	}
 
 	var correct int
-	q, a := parse(data)
+	q, a := parseLines(data)
 
+	timer := time.NewTimer(time.Duration(*timeLimit) * time.Second)
+
+problemsLoop:
 	for i := 0; i < len(q); i++ {
-		var input string
+		var answerCh = make(chan string)
 		fmt.Printf("Problem #%d: %v = ", (i + 1), q[i])
-		fmt.Scan(&input)
-		if input == a[i] {
-			correct++
+		go func() {
+			var answer string
+			fmt.Scanf("%s\n", &answer)
+			answerCh <- answer
+		}()
+		select {
+		case <-timer.C:
+			fmt.Println()
+			break problemsLoop
+		case answer := <-answerCh:
+			if answer == a[i] {
+				correct++
+			}
 		}
 	}
 	fmt.Printf("You scored %d corrects out of %d.\n", correct, len(q))
 }
 
-// Parse parse 2D data array into two arrays q for questions and a for answers.
-func parse(data [][]string) ([]string, []string) {
+// ParseLines parse 2D data array into two arrays q for questions and a for answers.
+func parseLines(data [][]string) ([]string, []string) {
 	var q, a []string
 	for _, arr := range data {
 		q = append(q, arr[0])
